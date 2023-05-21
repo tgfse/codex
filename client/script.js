@@ -78,7 +78,7 @@ const handleSubmit = async (e) => {
 
   const sendRequest = async () => {
     try {
-      const response = await fetch('https://codex-wxtj.onrender.com/', {
+      const response = await fetch('https://codex-wxtj.onrender.com', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
