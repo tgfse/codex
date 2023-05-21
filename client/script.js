@@ -5,6 +5,7 @@ const form = document.querySelector('form')
 const chatContainer = document.querySelector('#chat_container')
 
 let loadInterval
+let isSubmitting = false; // state variable to keep track of submissions
 
 function loader(element) {
     element.textContent = ''
@@ -60,6 +61,14 @@ function chatStripe(isAi, value, uniqueId) {
 const handleSubmit = async (e) => {
     e.preventDefault()
 
+    // If a submission is already in progress, return early
+    if (isSubmitting) {
+        return;
+    }
+
+    // Set submitting state to true
+    isSubmitting = true;
+
     const data = new FormData(form)
 
     chatContainer.insertAdjacentHTML('beforeend', chatStripe(false, data.get('prompt')));
@@ -75,30 +84,36 @@ const handleSubmit = async (e) => {
 
     loader(messageDiv)
 
-    const response = await fetch('https://codex-wxtj.onrender.com/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            prompt: data.get('prompt')
+    // Add a delay before sending the request
+    setTimeout(async () => {
+        const response = await fetch('https://codex-wxtj.onrender.com/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt: data.get('prompt')
+            })
         })
-    })
 
-    clearInterval(loadInterval)
-    messageDiv.innerHTML = " "
+        clearInterval(loadInterval)
+        messageDiv.innerHTML = " "
 
-    if (response.ok) {
-        const data = await response.json();
-        const parsedData = data.bot.trim()
+        if (response.ok) {
+            const data = await response.json();
+            const parsedData = data.bot.trim()
 
-        typeText(messageDiv, parsedData)
-    } else {
-        const err = await response.text()
+            typeText(messageDiv, parsedData)
+        } else {
+            const err = await response.text()
 
-        messageDiv.innerHTML = "Something went wrong"
-        alert(err)
-    }
+            messageDiv.innerHTML = "Something went wrong"
+            alert(err)
+        }
+
+        // Reset submitting state to false
+        isSubmitting = false;
+    }, 2000); // 2000 milliseconds (2 seconds) delay
 }
 
 form.addEventListener('submit', handleSubmit)
