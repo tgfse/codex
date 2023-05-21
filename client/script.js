@@ -5,7 +5,8 @@ const form = document.querySelector('form')
 const chatContainer = document.querySelector('#chat_container')
 
 let loadInterval
-let isSubmitting = false; // state variable to keep track of submissions
+let requestQueue = []
+const requestInterval = 1000; // adjust this according to your API's rate limit
 
 function loader(element) {
     element.textContent = ''
@@ -58,34 +59,12 @@ function chatStripe(isAi, value, uniqueId) {
     )
 }
 
-const handleSubmit = async (e) => {
-    e.preventDefault()
+const processQueue = async () => {
+    if (requestQueue.length > 0) {
+        const { data, uniqueId, messageDiv } = requestQueue.shift();
 
-    // If a submission is already in progress, return early
-    if (isSubmitting) {
-        return;
-    }
+        loader(messageDiv)
 
-    // Set submitting state to true
-    isSubmitting = true;
-
-    const data = new FormData(form)
-
-    chatContainer.insertAdjacentHTML('beforeend', chatStripe(false, data.get('prompt')));
-
-    form.reset()
-
-    const uniqueId = generateUniqueId()
-    chatContainer.insertAdjacentHTML('beforeend', chatStripe(true, " ", uniqueId));
-
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    const messageDiv = document.getElementById(uniqueId)
-
-    loader(messageDiv)
-
-    // Add a delay before sending the request
-    setTimeout(async () => {
         const response = await fetch('https://codex-wxtj.onrender.com/', {
             method: 'POST',
             headers: {
@@ -100,8 +79,8 @@ const handleSubmit = async (e) => {
         messageDiv.innerHTML = " "
 
         if (response.ok) {
-            const data = await response.json();
-            const parsedData = data.bot.trim()
+            const responseData = await response.json();
+            const parsedData = responseData.bot.trim()
 
             typeText(messageDiv, parsedData)
         } else {
@@ -110,15 +89,34 @@ const handleSubmit = async (e) => {
             messageDiv.innerHTML = "Something went wrong"
             alert(err)
         }
+    }
+}
 
-        // Reset submitting state to false
-        isSubmitting = false;
-    }, 2000); // 2000 milliseconds (2 seconds) delay
+const handleSubmit = (e) => {
+    e.preventDefault()
+
+    const data = new FormData(form)
+
+    chatContainer.insertAdjacentHTML('beforeend', chatStripe(false, data.get('prompt')));
+
+    form.reset()
+
+    const uniqueId = generateUniqueId()
+    chatContainer.insertAdjacentHTML('beforeend', chatStripe(true, " ", uniqueId));
+
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    const messageDiv = document.getElementById(uniqueId)
+
+    requestQueue.push({ data, uniqueId, messageDiv });
 }
 
 form.addEventListener('submit', handleSubmit)
 form.addEventListener('keyup', (e) => {
     if (e.keyCode === 13) {
+        e.preventDefault();
         handleSubmit(e)
     }
 })
+
+setInterval(processQueue, requestInterval);
