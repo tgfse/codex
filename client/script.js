@@ -75,7 +75,7 @@ const handleSubmit = async (e) => {
 
     loader(messageDiv)
 
-    const response = await fetch('https://codex-wxtj.onrender.com/', {
+    const response = await fetch('https://codex-green.vercel.app//', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
