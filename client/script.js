@@ -5,8 +5,6 @@ const form = document.querySelector('form')
 const chatContainer = document.querySelector('#chat_container')
 
 let loadInterval
-let requestQueue = []
-const requestInterval = 1000; // adjust this according to your API's rate limit
 
 function loader(element) {
     element.textContent = ''
@@ -59,40 +57,7 @@ function chatStripe(isAi, value, uniqueId) {
     )
 }
 
-const processQueue = async () => {
-    if (requestQueue.length > 0) {
-        const { data, uniqueId, messageDiv } = requestQueue.shift();
-
-        loader(messageDiv)
-
-        const response = await fetch('https://codex-wxtj.onrender.com/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prompt: data.get('prompt')
-            })
-        })
-
-        clearInterval(loadInterval)
-        messageDiv.innerHTML = " "
-
-        if (response.ok) {
-            const responseData = await response.json();
-            const parsedData = responseData.bot.trim()
-
-            typeText(messageDiv, parsedData)
-        } else {
-            const err = await response.text()
-
-            messageDiv.innerHTML = "Something went wrong"
-            alert(err)
-        }
-    }
-}
-
-const handleSubmit = (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault()
 
     const data = new FormData(form)
@@ -108,15 +73,51 @@ const handleSubmit = (e) => {
 
     const messageDiv = document.getElementById(uniqueId)
 
-    requestQueue.push({ data, uniqueId, messageDiv });
+    loader(messageDiv)
+
+    let retries = 5; // Number of retries
+    let delay = 500; // Delay in milliseconds
+
+    const sendRequest = async () => {
+      try {
+        const response = await fetch('https://codex-wxtj.onrender.com/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt: data.get('prompt')
+            })
+        })
+
+        if (response.status === 429 && retries > 0) {
+          // If too many requests, wait for a bit before trying again
+          setTimeout(sendRequest, delay);
+          retries -= 1; // Decrease the number of retries
+          delay *= 2; // Double the delay
+        } else if (!response.ok) {
+          throw new Error(`Request failed: ${response.status}`);
+        } else {
+          clearInterval(loadInterval)
+          messageDiv.innerHTML = " "
+          const data = await response.json();
+          const parsedData = data.bot.trim()
+          typeText(messageDiv, parsedData)
+        }
+      } catch (err) {
+        const error = await err.text()
+        messageDiv.innerHTML = "Something went wrong"
+        alert(error)
+      }
+    };
+
+    // Initiate the request
+    sendRequest();
 }
 
 form.addEventListener('submit', handleSubmit)
 form.addEventListener('keyup', (e) => {
     if (e.keyCode === 13) {
-        e.preventDefault();
         handleSubmit(e)
     }
 })
-
-setInterval(processQueue, requestInterval);
