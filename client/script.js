@@ -1,13 +1,13 @@
-import bot from './assets/bot.svg'
-import user from './assets/user.svg'
+import bot from './assets/bot.svg';
+import user from './assets/user.svg';
 
-const form = document.querySelector('form')
-const chatContainer = document.querySelector('#chat_container')
+const form = document.querySelector('form');
+const chatContainer = document.querySelector('#chat_container');
 
-let loadInterval
+let loadInterval;
 
 function loader(element) {
-    element.textContent = ''
+    element.textContent = '';
 
     loadInterval = setInterval(() => {
         element.textContent += '.';
@@ -19,16 +19,16 @@ function loader(element) {
 }
 
 function typeText(element, text) {
-    let index = 0
+    let index = 0;
 
     let interval = setInterval(() => {
         if (index < text.length) {
-            element.innerHTML += text.charAt(index)
-            index++
+            element.innerHTML += text.charAt(index);
+            index++;
         } else {
-            clearInterval(interval)
+            clearInterval(interval);
         }
-    }, 20)
+    }, 20);
 }
 
 function generateUniqueId() {
@@ -54,70 +54,72 @@ function chatStripe(isAi, value, uniqueId) {
             </div>
         </div>
     `
-    )
+    );
 }
 
 const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    const data = new FormData(form)
+    const data = new FormData(form);
 
     chatContainer.insertAdjacentHTML('beforeend', chatStripe(false, data.get('prompt')));
 
-    form.reset()
+    await form.reset();
 
-    const uniqueId = generateUniqueId()
+    const uniqueId = generateUniqueId();
     chatContainer.insertAdjacentHTML('beforeend', chatStripe(true, " ", uniqueId));
 
     chatContainer.scrollTop = chatContainer.scrollHeight;
 
-    const messageDiv = document.getElementById(uniqueId)
+    const messageDiv = document.getElementById(uniqueId);
 
-    loader(messageDiv)
+    loader(messageDiv);
 
     let retries = 5; // Number of retries
     let delay = 500; // Delay in milliseconds
 
     const sendRequest = async () => {
-      try {
-        const response = await fetch('https://codex-wxtj.onrender.com/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prompt: data.get('prompt')
-            })
-        })
+        try {
+            const response = await fetch('https://codex-wxtj.onrender.com/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: data.get('prompt'),
+                }),
+            });
 
-        if (response.status === 429 && retries > 0) {
-          // If too many requests, wait for a bit before trying again
-          setTimeout(sendRequest, delay);
-          retries -= 1; // Decrease the number of retries
-          delay *= 2; // Double the delay
-        } else if (!response.ok) {
-          throw new Error(`Request failed: ${response.status}`);
-        } else {
-          clearInterval(loadInterval)
-          messageDiv.innerHTML = " "
-          const data = await response.json();
-          const parsedData = data.bot.trim()
-          typeText(messageDiv, parsedData)
+            if (response.status === 429 && retries > 0) {
+                // If too many requests, wait for a bit before trying again
+                setTimeout(sendRequest, delay);
+                retries -= 1; // Decrease the number of retries
+                delay *= 2; // Double the delay
+            } else if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            } else {
+                clearInterval(loadInterval);
+
+                messageDiv.innerHTML = " ";
+
+                const responseData = await response.json();
+                const parsedData = responseData.bot.trim();
+                typeText(messageDiv, parsedData);
+            }
+        } catch (err) {
+            const error = `Something went wrong: ${err.message}`;
+            messageDiv.innerHTML = "Something went wrong";
+            alert(error);
         }
-      } catch (err) {
-        const error = `Something went wrong: ${err.message}`;
-        messageDiv.innerHTML = "Something went wrong";
-        alert(error);
-      }
     };
 
     // Initiate the request
-    sendRequest();
-}
+    await sendRequest();
+};
 
-form.addEventListener('submit', handleSubmit)
+form.addEventListener('submit', handleSubmit);
 form.addEventListener('keyup', (e) => {
     if (e.keyCode === 13) {
-        handleSubmit(e)
+        handleSubmit(e);
     }
-})
+});
